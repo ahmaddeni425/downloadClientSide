@@ -16,6 +16,6 @@ class UserApiController extends Controller
             $users->where('email', 'like', '%' . $request->query('email') . '%');
         }
 
-        return response()->json($users->paginate(10));
+        return response()->json($users->paginate(25));
     }
 }
