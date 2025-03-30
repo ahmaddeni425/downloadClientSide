@@ -20,24 +20,48 @@
         let currentPage = 1;
 
         while (apiUrl) {
-            let response = await fetch(apiUrl);
-            let json = await response.json();
-            
-            total = json.total;
-            perPage = json.per_page;
-            currentPage = json.current_page;
+            try {
+                let json = await fetchWithRetry(apiUrl, 10, 5000); // retry 10 kali tiap 5 detik
+                total = json.total;
+                perPage = json.per_page;
+                currentPage = json.current_page;
 
-            allData = allData.concat(json.data);
-            apiUrl = json.next_page_url;
+                allData = allData.concat(json.data);
+                apiUrl = json.next_page_url;
 
-            document.getElementById('download-status').innerText = `Download ${Math.min(currentPage * perPage, total)} of ${total}`;
-
-            await sleep(1000);
+                document.getElementById('download-status').innerText = `Download ${Math.min(currentPage * perPage, total)} of ${total}`;
+                await sleep(500);
+            } catch (err) {
+                document.getElementById('download-status').innerText = `Gagal download data: ${err.message}`;
+                break;
+            }
         }
 
-        document.getElementById('download-status').innerText = `Download ${total} of ${total}`;
+        if (allData.length === total) {
+            document.getElementById('download-status').innerText = `Download selesai (${total} data)`;
+        }
+
         return allData;
     }
+
+    async function fetchWithRetry(url, retries = 5, delay = 3000) {
+        for (let attempt = 0; attempt < retries; attempt++) {
+            try {
+                let response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.warn(`Fetch failed (attempt ${attempt + 1} of ${retries}): ${error.message}`);
+                if (attempt < retries - 1) {
+                    document.getElementById('download-status').innerText = `Koneksi gagal, mencoba lagi (${attempt + 1})...`;
+                    await sleep(delay);
+                } else {
+                    throw new Error("Gagal fetch data setelah beberapa kali mencoba.");
+                }
+            }
+        }
+    }
+
 
     //lalu ini buat setup headernya
     function defineHeader() {
